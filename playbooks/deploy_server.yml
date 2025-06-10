@@ -10,3 +10,10 @@
   become: yes
   roles:
     - database
+
+- hosts: all
+  become: yes
+  roles:
+    - webserver
+    - database
+    - monitoring

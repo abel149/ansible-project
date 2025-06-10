@@ -1,0 +1,57 @@
+---
+- name: Download Prometheus Node Exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v1.7.1/node_exporter-1.7.1.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter.tar.gz"
+    mode: "0644"
+
+- name: Extract Node Exporter archive
+  unarchive:
+    src: "/tmp/node_exporter.tar.gz"
+    dest: "/usr/local/bin/"
+    remote_src: yes
+    creates: "/usr/local/bin/node_exporter-1.7.1.linux-amd64/node_exporter"
+
+- name: Move node_exporter binary to /usr/local/bin
+  command: mv /usr/local/bin/node_exporter-1.7.1.linux-amd64/node_exporter /usr/local/bin/node_exporter
+  args:
+    removes: /usr/local/bin/node_exporter-1.7.1.linux-amd64/node_exporter
+
+- name: Create node_exporter user
+  user:
+    name: node_exporter
+    system: yes
+    shell: /usr/sbin/nologin
+
+- name: Create systemd service file for node_exporter
+  copy:
+    dest: /etc/systemd/system/node_exporter.service
+    content: |
+      [Unit]
+      Description=Prometheus Node Exporter
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      User=node_exporter
+      ExecStart=/usr/local/bin/node_exporter
+
+      [Install]
+      WantedBy=default.target
+  notify: restart node_exporter
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start node_exporter service
+  systemd:
+    name: node_exporter
+    enabled: yes
+    state: started
+
+- name: Allow node_exporter port in UFW firewall
+  ufw:
+    rule: allow
+    port: 9100
+    proto: tcp
