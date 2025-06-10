@@ -16,11 +16,20 @@
     state: present
   become: yes
 
+- name: Remove existing content in /var/www/html
+  file:
+    path: /var/www/html
+    state: absent
+
+- name: Recreate the directory
+  file:
+    path: /var/www/html
+    state: directory
+
 - name: Clone web app repo to /var/www/html
   git:
-    repo: https://github.com/abel149/registration-and-grading-system
+    repo: "https://github.com/abel149/registration-and-grading-system"
     dest: /var/www/html
-  become: yes
 
 - name: Set ownership to www-data
   file:
