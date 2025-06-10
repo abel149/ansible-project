@@ -21,3 +21,5 @@ ssh ubuntu@192.168.1.12
 ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.12
 ssh ubuntu@192.168.1.12
 ssh ubuntu@192.168.1.10
+cd
+pwd
