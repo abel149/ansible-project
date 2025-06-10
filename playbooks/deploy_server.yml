@@ -17,3 +17,35 @@
     - webserver
     - database
     - monitoring
+
+- name: Logging and Reporting
+  hosts: all
+  become: yes
+  tasks:
+    - name: Fetch Apache logs (if webserver)
+      fetch:
+        src: /var/log/apache2/access.log
+        dest: ../logs/{{ inventory_hostname }}-access.log
+        flat: yes
+      when: "'webserver' in group_names"
+
+    - name: Write deployment report header (on control machine)
+      delegate_to: localhost
+      copy:
+        dest: "../reports/deployment_report.txt"
+        content: "Deployment Report\n===================\n"
+
+    - name: Generate per-host service report
+      shell: |
+        echo "Host: {{ inventory_hostname }}" >> /tmp/report_{{ inventory_hostname }}.txt
+        echo "IP: {{ ansible_host }}" >> /tmp/report_{{ inventory_hostname }}.txt
+        echo "Apache Status: $(systemctl is-active apache2 2>/dev/null || echo 'N/A')" >> /tmp/report_{{ inventory_hostname }}.txt
+        echo "MySQL Status: $(systemctl is-active mysql 2>/dev/null || echo 'N/A')" >> /tmp/report_{{ inventory_hostname }}.txt
+      args:
+        executable: /bin/bash
+
+    - name: Fetch per-host report to control machine
+      fetch:
+        src: /tmp/report_{{ inventory_hostname }}.txt
+        dest: ../reports/
+        flat: yes
