@@ -1,0 +1,47 @@
+- name: Install Apache web server
+  apt:
+    name: apache2
+    state: present
+  become: yes
+
+- name: Ensure Apache service is enabled and started
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+
+- name: Deploy customized homepage
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+  notify: restart apache
+
+- name: Clone web app repo to /var/www/html
+  git:
+    repo: "https://github.com/yourusername/yourrepo.git"
+    dest: /var/www/html
+    version: main # or your default branch
+    force: yes # overwrite if files exist
+  become: yes
+
+- name: Set ownership to www-data
+  file:
+    path: /var/www/html
+    owner: www-data
+    group: www-data
+    recurse: yes
+  become: yes
+
+- name: Set permissions on web app files
+  file:
+    path: /var/www/html
+    mode: "0755"
+    recurse: yes
+  become: yes
+
+- name: Restart Apache to apply changes
+  service:
+    name: apache2
+    state: restarted
+  become: yes
+  notify: restart apache # if you already have this handler, else remove notify

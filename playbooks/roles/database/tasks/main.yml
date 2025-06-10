@@ -1,0 +1,26 @@
+---
+- name: Install MySQL server
+  apt:
+    name: mysql-server
+    state: present
+  become: yes
+
+- name: Ensure MySQL service is enabled and started
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+- name: Create sample database
+  mysql_db:
+    name: sample_db
+    state: present
+  become: yes
+
+- name: Create sample user with password
+  mysql_user:
+    name: sample_user
+    password: "your_password_here"
+    priv: "sample_db.*:ALL"
+    host: "%"
+    state: present
+  become: yes
