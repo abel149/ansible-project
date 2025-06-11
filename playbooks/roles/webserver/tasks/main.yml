@@ -4,12 +4,6 @@
     state: present
   become: yes
 
-- name: Ensure Apache service is enabled and started
-  service:
-    name: apache2
-    state: started
-    enabled: yes
-
 - name: Install git
   apt:
     name: git
@@ -26,32 +20,60 @@
     path: /var/www/html
     state: directory
 
-- name: Clone web app repo to /var/www/html
-  git:
-    repo: "https://github.com/abel149/registration-and-grading-system"
-    dest: /var/www/html
+# Error handling block for cloning the repo
+- block:
+    - name: Clone web app repo to /var/www/html
+      git:
+        repo: "https://github.com/abel149/registration-and-grading-system"
+        dest: /var/www/html
 
-- name: Set ownership to www-data
-  file:
-    path: /var/www/html
-    owner: www-data
-    group: www-data
-    recurse: yes
-  become: yes
+  rescue:
+    - name: Fail gracefully when cloning repo fails
+      debug:
+        msg: "❌ Failed to clone the repository. Check repo URL or network connectivity."
 
-- name: Set permissions on web app files
-  file:
-    path: /var/www/html
-    mode: "0755"
-    recurse: yes
-  become: yes
+  always:
+    - name: Set ownership to www-data
+      file:
+        path: /var/www/html
+        owner: www-data
+        group: www-data
+        recurse: yes
+      become: yes
 
-- name: Restart Apache to apply changes
-  service:
-    name: apache2
-    state: restarted
-  become: yes
-  notify: restart apache # if you already have this handler, else remove notify
+    - name: Set permissions on web app files
+      file:
+        path: /var/www/html
+        mode: "0755"
+        recurse: yes
+      become: yes
+
+# Error handling block for starting/restarting Apache
+- block:
+    - name: Ensure Apache service is enabled and started
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+      become: yes
+
+    - name: Restart Apache to apply changes
+      service:
+        name: apache2
+        state: restarted
+      become: yes
+      notify: restart apache # keep this only if you have a handler defined
+
+  rescue:
+    - name: Retry restarting Apache service after failure
+      service:
+        name: apache2
+        state: restarted
+      become: yes
+
+    - name: Notify failure to start Apache service
+      debug:
+        msg: "❌ Apache failed to start/restart. Manual intervention recommended."
 
 - name: Deploy dynamic info page
   template:

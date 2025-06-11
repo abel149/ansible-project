@@ -1,0 +1,5 @@
+Host: 192.168.1.7
+IP: 192.168.1.7
+Groups: webservers
+Apache Status: active
+MySQL Status: N/A

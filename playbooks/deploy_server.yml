@@ -4,17 +4,12 @@
   become: yes
   roles:
     - webserver
+    - monitoring
 
 - name: Configure Database Servers
   hosts: dbservers
   become: yes
   roles:
-    - database
-
-- hosts: all
-  become: yes
-  roles:
-    - webserver
     - database
     - monitoring
 
@@ -22,30 +17,92 @@
   hosts: all
   become: yes
   tasks:
-    - name: Fetch Apache logs (if webserver)
+    - name: Ensure logs directory exists
+      delegate_to: localhost
+      run_once: yes
+      become: false
+      file:
+        path: "../logs/"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure reports directory exists
+      delegate_to: localhost
+      run_once: yes
+      become: false
+      file:
+        path: "../reports/"
+        state: directory
+        mode: "0755"
+
+    - name: Fetch Apache logs (web servers only)
       fetch:
         src: /var/log/apache2/access.log
         dest: ../logs/{{ inventory_hostname }}-access.log
         flat: yes
-      when: "'webserver' in group_names"
+      when: "'webservers' in group_names"
 
-    - name: Write deployment report header (on control machine)
+    - name: Write deployment report header
       delegate_to: localhost
+      run_once: yes
+      become: false
       copy:
         dest: "../reports/deployment_report.txt"
-        content: "Deployment Report\n===================\n"
+        content: |
+          Deployment Report
+          ===================
+          Generated on: {{ ansible_date_time.iso8601 }}
 
     - name: Generate per-host service report
-      shell: |
-        echo "Host: {{ inventory_hostname }}" >> /tmp/report_{{ inventory_hostname }}.txt
-        echo "IP: {{ ansible_host }}" >> /tmp/report_{{ inventory_hostname }}.txt
-        echo "Apache Status: $(systemctl is-active apache2 2>/dev/null || echo 'N/A')" >> /tmp/report_{{ inventory_hostname }}.txt
-        echo "MySQL Status: $(systemctl is-active mysql 2>/dev/null || echo 'N/A')" >> /tmp/report_{{ inventory_hostname }}.txt
-      args:
-        executable: /bin/bash
+      block:
+        - name: Create temporary report
+          copy:
+            dest: "/tmp/report_{{ inventory_hostname }}.txt"
+            content: |
+              Host: {{ inventory_hostname }}
+              IP: {{ ansible_host }}
+              Groups: {{ group_names | join(', ') }}
+
+        - name: Check Apache status
+          command: systemctl is-active apache2
+          register: apache_status
+          ignore_errors: yes
+          when: "'webservers' in group_names"
+          changed_when: false
+
+        - name: Check MySQL status
+          command: systemctl is-active mysql
+          register: mysql_status
+          ignore_errors: yes
+          when: "'dbservers' in group_names"
+          changed_when: false
+
+        - name: Update service status in report
+          lineinfile:
+            path: "/tmp/report_{{ inventory_hostname }}.txt"
+            line: "{{ item.line }}"
+            insertafter: EOF
+          loop:
+            - {
+                line: "Apache Status: {{ apache_status.stdout if 'webservers' in group_names else 'N/A' }}",
+              }
+            - {
+                line: "MySQL Status: {{ mysql_status.stdout if 'dbservers' in group_names else 'N/A' }}",
+              }
+
+      rescue:
+        - debug:
+            msg: "Failed to generate service report for {{ inventory_hostname }}"
 
     - name: Fetch per-host report to control machine
       fetch:
         src: /tmp/report_{{ inventory_hostname }}.txt
         dest: ../reports/
         flat: yes
+      ignore_errors: yes
+
+    - name: Clean up temporary reports
+      file:
+        path: "/tmp/report_{{ inventory_hostname }}.txt"
+        state: absent
+      ignore_errors: yes

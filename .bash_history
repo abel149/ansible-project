@@ -23,3 +23,15 @@ ssh ubuntu@192.168.1.12
 ssh ubuntu@192.168.1.10
 cd
 pwd
+ansible-playbook -i inventory/hosts.ini playbooks/deploy_server.yml 
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.12
+ssh-keygen -f "/home/abel/.ssh/known_hosts" -R "192.168.1.12"
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.12
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.7
+ssh-keygen -f "/home/abel/.ssh/known_hosts" -R "192.168.1.12"
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.12
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.7
+ssh-keygen -f "/home/abel/.ssh/known_hosts" -R "192.168.1.12"
+ssh-keygen -f "/home/abel/.ssh/known_hosts" -R "192.168.1.7"
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.7
+ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@192.168.1.12
